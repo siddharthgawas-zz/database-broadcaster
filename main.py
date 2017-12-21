@@ -9,7 +9,12 @@ import hashlib
 import motor.motor_tornado
 import tornado.gen
 from bson.son import SON
-from subscribe_message  import SubscribeMessage, InvalidSubscribeMessageError
+from subscribe_message  import SubscribeMessage, InvalidSubscribeMessageError, \
+    EventNotFoundError, InvalidActionError
+from http import HTTPStatus
+import tornado.concurrent
+
+
 define("port", default=8000, type=int, help="Set Port to Run")
 define("host", default="0.0.0.0", type=str, help="Set IP to Run")
 
@@ -32,33 +37,44 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def on_message(self, message):
-        s = loads(message)
-        print('Incoming Message From ' + self.request.remote_ip + '\n MESSAGE = ' + str(s))
-        type_s = s['type']
-        if type_s == 'subscribe':
-            self.subscribe(message)
-        elif type_s == 'unsubscribe':
-            self.unsubscribe(message)
-        elif type_s == 'unsubscribe all':
-            self.unsubscribe_all(message)
+        try:
+            s = loads(message)
+            print('Incoming Message From ' + self.request.remote_ip + '\n MESSAGE = ' + str(s))
+            type_s = s['type']
+            if type_s == 'subscribe':
+                yield self.subscribe(message)
+            elif type_s == 'unsubscribe':
+                self.unsubscribe(message)
+            elif type_s == 'unsubscribe all':
+                self.unsubscribe_all(message)
+            else:
+                raise InvalidActionError()
+
+        except json.JSONDecodeError as e:
+            self.write_error(HTTPStatus.BAD_REQUEST, message='Invalid Json Format')
+        except InvalidSubscribeMessageError as e:
+            self.write_error(e.status_code, message=e.msg)
+        except KeyError as e:
+            self.write_error(HTTPStatus.BAD_REQUEST, message='Please Provide Valid Fields')
+        except EventNotFoundError as e:
+            self.write_error(e.status_code,message=e.msg)
+        except InvalidActionError as e:
+            self.write_error(e.status_code,message=e.msg)
+
+    def write_error(self, status_code, **kwargs):
+        status = {'status_code': status_code}
+        if 'message' in kwargs.keys():
+            status['message'] = kwargs['message']
+        self.write_message(dumps(status))
 
     def unsubscribe(self, message):
-        try:
-            json_dict = loads(message)
-            status = {'status': 'unsubscribed'}
-            event_id = json_dict['event_id']
-            if event_id not in self.events_subscribed.keys():
-                status['status'] = 'event not found'
-                self.write_message(dumps(status))
-                return
-            del self.events_subscribed[event_id]
-            self.write_message(dumps(status))
-        except json.JSONDecodeError as e:
-            status['status'] = 'Improper Json Format'
-            self.write_message(dumps(status))
-        except KeyError as e:
-            status['status'] = 'Invalid Fields'
-            self.write_message(dumps(status))
+        json_dict = loads(message)
+        status = {'status': 'unsubscribed'}
+        event_id = json_dict['event_id']
+        if event_id not in self.events_subscribed.keys():
+            raise EventNotFoundError()
+        del self.events_subscribed[event_id]
+        self.write_message(dumps(status))
 
     def unsubscribe_all(self, message):
         status = {}
@@ -68,38 +84,24 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def subscribe(self, message):
-        try:
-            status = {'status': "subscribed"}
-            sub_msg = SubscribeMessage.parse_message(message)
-            hash_msg = sub_msg.compute_hash()
+        status = {'status': "subscribed"}
+        sub_msg = SubscribeMessage.parse_message(message)
+        hash_msg = sub_msg.compute_hash()
+        result = sub_msg.get_data_by_data_path(self.db_client)
+        if type(result) is motor.motor_tornado.MotorCursor:
+            document = []
+            while (yield result.fetch_next):
+                doc = result.next_object()
+                document.append(doc)
+        else:
+            document = yield sub_msg.get_data_by_data_path(self.db_client)
+        status['data'] = document
 
-            result = sub_msg.get_data_by_data_path(self.db_client)
-            if type(result) is motor.motor_tornado.MotorCursor:
-                document = []
-                while (yield result.fetch_next):
-                    doc = result.next_object()
-                    document.append(doc)
-            else:
-                document = yield sub_msg.get_data_by_data_path(self.db_client)
-            status['data'] = document
-
-            self.events_subscribed[hash_msg] = \
-                hashlib.sha1(str(document).encode('utf-8')).hexdigest()
-            status['event_id'] = hash_msg
-            status['data_hash'] = self.events_subscribed[hash_msg]
-            self.write_message(dumps(status))
-
-        except json.JSONDecodeError as e:
-            status['status'] = 'Improper JSON  Format'
-            self.write_message(dumps(status))
-        except InvalidSubscribeMessageError as e:
-            status['status'] = '''Invalid Subscribe Message.
-                   Ensure db_name and collection_name are not blank'''
-            self.write_message(dumps(status))
-        except KeyError as e:
-            status['status'] = 'Please Provide valid fields'
-            self.write_message(dumps(status))
-
+        self.events_subscribed[hash_msg] = \
+            hashlib.sha1(str(document).encode('utf-8')).hexdigest()
+        status['event_id'] = hash_msg
+        status['data_hash'] = self.events_subscribed[hash_msg]
+        self.write_message(dumps(status))
     def on_close(self):
         print("Websocket Closed", self.request.remote_ip
               + "-" + self.request.host)

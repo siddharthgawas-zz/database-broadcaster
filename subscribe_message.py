@@ -2,17 +2,13 @@ import tornado.httpserver
 import tornado.web
 import tornado.websocket
 import json.decoder
-from tornado.options import define, options
 import tornado.options
-import tornado.ioloop as ioloop
 from bson.json_util import loads, dumps
 from bson.objectid import ObjectId
 import hashlib
 import tornado.log
-import motor.motor_tornado
 import tornado.gen
-from bson.son import SON
-
+import tornado.concurrent
 class SubscribeMessage:
     def __init__(self):
         self.db_name = ""
@@ -36,15 +32,12 @@ class SubscribeMessage:
                 return sub_message
             else:
                 raise InvalidSubscribeMessageError
-        except json.decoder.JSONDecodeError as e:
-            print("LOG ERROR: " + e.msg)
-            raise e
         except KeyError as e:
             print("LOG ERROR: KeyError")
-            raise e
+            raise
         except InvalidSubscribeMessageError as e:
             print("LOG ERROR: " + e.msg)
-            raise e
+            raise
 
     def is_valid(self):
         if self.db_name is "" or self.collection_name is "":
@@ -87,4 +80,15 @@ class SubscribeMessage:
 
 
 class InvalidSubscribeMessageError(Exception):
+    status_code = 1001
     msg = 'Invalid Subscribe Message'
+
+
+class EventNotFoundError(Exception):
+    status_code = 1002
+    msg = 'Event Not Found. Please ensure that event is already registered'
+
+
+class InvalidActionError(Exception):
+    status_code = 1003
+    msg = 'Invalid Action'
