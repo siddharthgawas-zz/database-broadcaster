@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="0f570876-40fd-4839-b6e7-307ab88b7fa9" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
-      <change beforePath="$PROJECT_DIR$/subscribe_message.py" afterPath="$PROJECT_DIR$/subscribe_message.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -30,8 +28,8 @@
       <file leaf-file-name="subscribe_message.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/subscribe_message.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="506">
-              <caret line="94" column="0" lean-forward="true" selection-start-line="94" selection-start-column="0" selection-end-line="94" selection-end-column="0" />
+            <state relative-caret-position="1512">
+              <caret line="84" column="0" lean-forward="true" selection-start-line="84" selection-start-column="0" selection-end-line="84" selection-end-column="0" />
               <folding>
                 <element signature="e#0#25#0" expanded="true" />
               </folding>
@@ -155,6 +153,14 @@
       <option name="presentableId" value="Default" />
       <updated>1513402800656</updated>
     </task>
+    <task id="LOCAL-00001" summary="Error Codes Added&#10;Code Organized">
+      <created>1513842924417</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1513842924418</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -182,6 +188,10 @@
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Error Codes Added&#10;Code Organized" />
+    <option name="LAST_COMMIT_MESSAGE" value="Error Codes Added&#10;Code Organized" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -329,8 +339,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/subscribe_message.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="506">
-          <caret line="94" column="0" lean-forward="true" selection-start-line="94" selection-start-column="0" selection-end-line="94" selection-end-column="0" />
+        <state relative-caret-position="1512">
+          <caret line="84" column="0" lean-forward="true" selection-start-line="84" selection-start-column="0" selection-end-line="84" selection-end-column="0" />
           <folding>
             <element signature="e#0#25#0" expanded="true" />
           </folding>
