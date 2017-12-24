@@ -18,7 +18,7 @@ class SubscribeMessage:
         self.objectId = None
         self.field = ""
 
-    def __init__(self, db_name = "", collection_name = "", object_id=None, field=""):
+    def __init__(self, db_name="", collection_name="", object_id=None, field=""):
         self.db_name = db_name
         self.collection_name = collection_name
         self.objectId = object_id
