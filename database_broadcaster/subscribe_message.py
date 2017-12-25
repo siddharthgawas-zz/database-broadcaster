@@ -1,3 +1,6 @@
+"""
+Contains classes for subscribe messages.
+"""
 import tornado.httpserver
 import tornado.web
 import tornado.websocket
@@ -9,8 +12,6 @@ import hashlib
 import tornado.log
 import tornado.gen
 import tornado.concurrent
-
-
 class SubscribeMessage:
     """
     This class represents the part of database to be subscribed.

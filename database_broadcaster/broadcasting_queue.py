@@ -1,3 +1,6 @@
+"""
+Contains class BroadcastingQueue used for broadcasting events.
+"""
 import threading
 from queue import Queue
 import tornado.ioloop

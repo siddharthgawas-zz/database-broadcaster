@@ -1,4 +1,7 @@
-import sub_msg_gen as sg
+"""
+Contains Wrapper class for MotorCollection.
+"""
+from database_broadcaster import sub_msg_gen as sg
 import tornado.gen
 
 class MotorCollectionWrapper:

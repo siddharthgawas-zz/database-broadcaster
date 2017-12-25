@@ -1,4 +1,7 @@
-from subscribe_message import SubscribeMessage, InvalidSubscribeMessageError
+"""
+Contains methods to generate subscribe message hashes.
+"""
+from database_broadcaster.subscribe_message import SubscribeMessage, InvalidSubscribeMessageError
 
 
 def generate_subscribe_message_hash(db_name, collection_name, existing_object_id=None, fields=None):

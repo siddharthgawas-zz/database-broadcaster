@@ -1,15 +1,15 @@
+"""
+Contains ClientHandler class to handle web sockets.
+"""
 import json.decoder
 from bson.json_util import loads, dumps
 import hashlib
 import motor.motor_tornado
 from bson.son import SON
-from subscribe_message import SubscribeMessage, InvalidSubscribeMessageError, \
+from database_broadcaster.subscribe_message import SubscribeMessage, InvalidSubscribeMessageError, \
     EventNotFoundError
 from http import HTTPStatus
 import tornado.concurrent
-from db_wrapper import MotorCollectionWrapper
-
-
 class ClientHandler(tornado.websocket.WebSocketHandler):
     """
     Subclasses tornado.websocket.WebSocketHandler.
