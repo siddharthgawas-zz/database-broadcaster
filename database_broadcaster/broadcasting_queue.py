@@ -5,7 +5,6 @@ import threading
 from queue import Queue
 import tornado.ioloop
 
-
 class BroadcastingQueue(threading.Thread):
     """
     BroadcastingQueue subclasses threading.Thread. Objects  of this class
@@ -25,6 +24,7 @@ class BroadcastingQueue(threading.Thread):
         self.q = Queue(size)
         self.size = size
         self.clients = []
+        self.loop_flag = True
 
     def run(self):
         """
@@ -33,8 +33,10 @@ class BroadcastingQueue(threading.Thread):
         :return: None
         """
         super().run()
-        while True:
+        while self.loop_flag:
             event_id = self.q.get()
+            if event_id is None:
+                continue
             for client in self.clients:
                 if client.has_subscribed(event_id):
                     loop = tornado.ioloop.IOLoop.current()
@@ -70,3 +72,14 @@ class BroadcastingQueue(threading.Thread):
         :return: None.
         """
         self.clients.remove(client)
+
+    def stop(self):
+        """
+        Stop this thread.
+        :return: None
+        """
+        lock = threading.Lock()
+        lock.acquire()
+        self.loop_flag = False
+        self.q.put(None)
+        lock.release()
