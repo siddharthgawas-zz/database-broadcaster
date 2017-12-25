@@ -49,7 +49,8 @@ class DerivedClientHandler(ClientHandler):
                 update = s['update']
                 collection = (self.db_client[db_name])[collection_name]
                 collection_wrap = MotorCollectionWrapper(collection, self.application.broadcast_queue)
-                collection_wrap.update_one(filter,update)
+                collection_wrap.update_one(filter, update)
+
             elif type == 'update_many':
                 db_name = s['db_name']
                 collection_name = s['collection_name']
@@ -67,14 +68,35 @@ class DerivedClientHandler(ClientHandler):
 
 
 class RealTimeDbApplication(tornado.web.Application):
+    """
+    RealTimeDbApplication is a subclass of tornado.web.Application.
+    This class is used to create basic real time database application.
+
+    Attributes:
+        broadcast_queue: BroadcastingQueue object used to broadcast messages to clients.
+    """
     def __init__(self, queue_size=4000, handlers=None,
                  default_host=None, transforms=None, **settings):
+        """
+        Initializes RealTimeDbApplication.
+        :param queue_size: Specifies the size of BroadCastingQueue object.
+        :param handlers: List of (url,ClientHandler). More than two ClientHandlers can be
+        used which will share broadcast_queue.
+        :param default_host:
+        :param transforms:
+        :param settings: Settings of handlers.
+        """
         if handlers is None:
             handlers = [(r'/webs', ClientHandler)]
         self.broadcast_queue = BroadcastingQueue(queue_size)
         super().__init__(handlers, default_host, transforms, **settings)
 
     def start_broadcast_queue(self):
+        """
+        This methods is used to start broadcast_queue. broadcast_queue(of type BroadcastingQueue)
+        is also an instance of type threading.Thread. Thus this method starts BroadcastingQueue thread.
+        :return: Returns None.
+        """
         self.broadcast_queue.start()
 
 

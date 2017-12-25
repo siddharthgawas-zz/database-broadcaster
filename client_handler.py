@@ -11,19 +11,44 @@ from db_wrapper import MotorCollectionWrapper
 
 
 class ClientHandler(tornado.websocket.WebSocketHandler):
+    """
+    Subclasses tornado.websocket.WebSocketHandler.
+    Attributes:
+         events_subscribed: Dictionary that maintains the events subscribed by the client.
+         Here each key is an event ID which is  sha1 fingerprint of subscribed message.
+         Subscribed message is represented by SubscribeMessage.
+         Each value is a tuple (data hash, SubscribeMessage). In this tuple data hash
+         is the sha1 hash of data fetched by path represented by SubscribeMessage.
 
+         db_client:  MotorClient object which bson.son.SON as document_class.
+    """
     def __init__(self, application, request, **kwargs):
+        """
+        :param application: tornado.web.Application object
+        :param request: tornado.httputil.HTTPServerRequest object
+        :param kwargs: Additional keyword arguments.
+        """
         super().__init__(application, request, **kwargs)
         self.events_subscribed = {}
         self.db_client = motor.motor_tornado.MotorClient(document_class=SON)
 
     def has_subscribed(self, event_id):
+        """
+        Checks whether client has subscribed to the event or not.
+        :param event_id: sha1 fingerprint of SubscribeMessage
+        :return: Returns True if the client has subscribed to the event or False otherwise.
+        """
         if event_id in self.events_subscribed.keys():
             return True
         else:
             return False
 
     def open(self):
+        """
+        Overrides tornado.web.WebSocketHandler.open()
+        Add client to the broadcast_queue.
+        :return: None
+        """
         status = {'status': 'connected'}
         self.write_message(dumps(status))
         print("Web Socket Opened", self.request.remote_ip
@@ -35,6 +60,12 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def on_message(self, message):
+        """
+        Overrides tornado.web.WebSocketHandler.on_message(). This coroutine handles basic actions such as
+        subscribing, un-subscribing, and un-subscribing all.
+        :param message: Received JSON string.
+        :return: Returns None
+        """
         try:
             s = loads(message)
             print('Incoming Message From ' + self.request.remote_ip + '\n MESSAGE = ' + str(s))
@@ -56,12 +87,29 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
             self.write_error(e.status_code, message=e.msg)
 
     def write_error(self, status_code, **kwargs):
+        """
+        Overrides tornado.web.WebSocketHandler.write_error().
+        Sends error code and message to the client in JSON format.
+        :param status_code: Status Code of error.
+        :param kwargs: Additional keyword arguments.
+        :return: Returns None
+        """
         status = {'status_code': status_code}
         if 'message' in kwargs.keys():
             status['message'] = kwargs['message']
         self.write_message(dumps(status))
 
     def unsubscribe(self, message):
+        """
+        Unsubscribe single event.
+        :param message: JSON message of format
+        {
+            "type": "unsubscribe",
+            "event_id": "--some event id here--"
+        }
+        :return: None
+        :raises EventNotFoundError: if client hasn't subscribed to the event.
+        """
         json_dict = loads(message)
         status = {'status': 'unsubscribed'}
         event_id = json_dict['event_id']
@@ -71,6 +119,14 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         self.write_message(dumps(status))
 
     def unsubscribe_all(self, message):
+        """
+        Unsubscribe all the events.
+        :param message: JSON message of format
+        {
+            "type": "unsubscribe_all"
+        }
+        :return:
+        """
         status = {}
         self.events_subscribed = {}
         status['status'] = 'unsubscribed all'
@@ -78,6 +134,18 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def subscribe(self, message):
+        """
+         Coroutine to subscribe to an event.
+        :param message: JSON message of format
+        {
+            "type": "subscribe",
+            "db_name": "--name of database--",
+            "collection_name": "--name of collection--",
+            "objectId": "--ID of document to be subscribed--",
+            "field": "--field on which to register listener--"
+        }
+        :return: None
+        """
         status = {'status': 'subscribed'}
         sub_msg = SubscribeMessage.parse_message(message)
         hash_msg = sub_msg.compute_hash()
@@ -98,6 +166,11 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         self.write_message(dumps(status))
 
     def on_close(self):
+        """
+        Overrides tornado.web.WebSocketHandler.on_close().
+        Removes client from the broadcasting queue.
+        :return: None
+        """
         self.application.broadcast_queue.remove_client(self)
         print("Websocket Closed", self.request.remote_ip
               + "-" + self.request.host)
@@ -105,6 +178,11 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def broadcast_change(self, event_id):
+        """
+        Broadcast change to the client.
+        :param event_id:  sha1 fingerprint of subscribed event.
+        :return: None
+        """
         current_data_hash = self.events_subscribed[event_id][0]
         sub_message = self.events_subscribed[event_id][1]
         result = sub_message.get_data_by_data_path(self.db_client)

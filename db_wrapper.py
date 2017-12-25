@@ -2,8 +2,21 @@ import sub_msg_gen as sg
 import tornado.gen
 
 class MotorCollectionWrapper:
-
+    """
+    Wrapper class for MotorCollection. This class provides methods are similar to methods of
+    MotorCollection. Each method generates event IDs using generate_subscribe_message_hash
+    and sends it to the broadcast_queue.
+    Attributes:
+        collection: MotorCollection instance.
+        queue: BroadcastingQueue instance.
+    """
     def __init__(self, collection, broadcast_queue):
+        """
+        Initializes MotorCollectionWrapper.
+        :param collection: MotorCollection instance on which operation to be performed.
+        :param broadcast_queue: BroadcastingQueue instance which is used for broadcasting event IDs
+        generated.
+        """
         self.collection = collection
         self.queue = broadcast_queue
 

@@ -12,13 +12,27 @@ import tornado.concurrent
 
 
 class SubscribeMessage:
+    """
+    This class represents the part of database to be subscribed.
+    Attributes:
+        db_name: Mandatory attribute that takes the name of the database.
+        collection_name: Mandatory attribute that takes name of the collection.
+        objectId: Optional object ID of document to be subscribed.
+        field: Optional field of document to be subscribed.
+    """
     def __init__(self):
+        """
+        Initializes SubscribeMessage object.
+        """
         self.db_name = ""
         self.collection_name = ""
         self.objectId = None
         self.field = ""
 
     def __init__(self, db_name="", collection_name="", object_id=None, field=""):
+        """
+        Initializes SubscribeMessage object.
+        """
         self.db_name = db_name
         self.collection_name = collection_name
         self.objectId = object_id
@@ -26,6 +40,20 @@ class SubscribeMessage:
 
     @staticmethod
     def parse_message(message):
+        """
+        Static methods that creates SubscribeMessage object based the JSON subscribe message.
+        :param message: JSON subscribe message of the following format.
+        {
+            "type": "subscribe",
+            "db_name": "--name of database--",
+            "collection_name": "--name of collection--",
+            "objectId": "--optional ID of document to be subscribed--",
+            "field": "--optional field on which to register listener--"
+        }
+        :return: Returns SubscribeMessage object.
+        :raises KeyError: Raised if the JSON subscribe message contains invalid fields.
+        :raises InvalidSubscribeMessageError: Raised if the SubscribeMessage is invalid.
+        """
         sub_message = SubscribeMessage()
         try:
             json_dict = loads(message)
@@ -48,12 +76,22 @@ class SubscribeMessage:
             raise
 
     def is_valid(self):
+        """
+        Checks if the SubscribeMessage is valid or not. SubscribeMessage is valid
+        if db_name and collection_name is not empty, invalid otherwise.
+        :return: Returns True if db_name and collection_name are not empty. False otherwise.
+        """
         if self.db_name is "" or self.collection_name is "":
             return False
         else:
             return True
 
     def compute_hash(self):
+        """
+        Computes sha1 fingerprint of the subscribe message which is called Event ID.
+        :return: Returns sha1 fingerprint of SubscribeMessage.
+        :raises InvalidSubscribeMessageError: Raised if the SubscribeMessage is invalid.
+        """
         if self.is_valid():
             s = self.db_name + ":" + self.collection_name + ":" + self.objectId.__str__()
             s += ":" + self.field
@@ -63,6 +101,12 @@ class SubscribeMessage:
             raise InvalidSubscribeMessageError()
 
     def get_data_by_data_path(self, connection):
+        """
+        Fetches the data pointed by this subscribe message.
+        :param connection: MotorClient object.
+        :return: Returns Future if the subscribe message points to specific document. Else returns
+        MotorCursor if subscribe message is on whole collection.
+        """
         db = connection[self.db_name]
         collection = db[self.collection_name]
         if not self.field:
@@ -88,15 +132,36 @@ class SubscribeMessage:
 
 
 class InvalidSubscribeMessageError(Exception):
+    """
+    Error that can be raised if the SubscribeMessage is invalid.
+    Status Code: 1001
+    Message: Invalid Subscribe Message
+    Attributes:
+        status_code: Status code of this error.
+    """
     status_code = 1001
     msg = 'Invalid Subscribe Message'
 
 
 class EventNotFoundError(Exception):
+    """
+    Error that can be raised if the event is not subscribed by client.
+    Status Code: 1002
+    Message: Event Not Found. Please ensure that event is already registered
+    Attributes:
+        status_code: Status code of this error.
+    """
     status_code = 1002
     msg = 'Event Not Found. Please ensure that event is already registered'
 
 
 class InvalidActionError(Exception):
+    """
+    Error that can be raised if the action requested by client is invalid action.
+    Status Code: 1003
+    Message: Invalid Action
+    Attributes:
+        status_code: Status code of this error.
+    """
     status_code = 1003
     msg = 'Invalid Action'
