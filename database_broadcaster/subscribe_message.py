@@ -12,6 +12,7 @@ import hashlib
 import tornado.log
 import tornado.gen
 import tornado.concurrent
+
 class SubscribeMessage:
     """
     This class represents the part of database to be subscribed.
@@ -131,6 +132,31 @@ class SubscribeMessage:
                 return collection.find_one({'_id': self.objectId}
                                            , {'_id': 1, projection: {"$slice": [n, 1]}})
 
+class GeneralSubscribeMessage:
+
+    def __init__(self,event_path = ""):
+        self.event_path = event_path
+
+    @staticmethod
+    def parse_message(message):
+        s = loads(message)
+        event_path = s['event_path']
+        msg = GeneralSubscribeMessage()
+        msg.event_path = event_path
+        return msg
+
+    def is_valid(self):
+        if self.event_path:
+            return True
+        else:
+            return False
+
+    def compute_hash(self):
+        if not self.is_valid():
+            raise InvalidSubscribeMessageError()
+        hash_ = hashlib.sha1(self.event_path.encode('utf-8'))
+        event_id = hash_.hexdigest()
+        return event_id
 
 class InvalidSubscribeMessageError(Exception):
     """

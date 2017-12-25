@@ -9,7 +9,9 @@ class BroadcastingQueue(threading.Thread):
     """
     BroadcastingQueue subclasses threading.Thread. Objects  of this class
     basically sends event messages to the the clients. It maintains an queue
-    that contains event fingerprints.
+    that contains event fingerprints. BroadcastingQueue is a self starting queue. Thread to
+    process queue will be started automatically when a client is added. Thread is destroyed
+    when queue has no clients.
     Attributes:
         q: First in First Queue object. Contains fingerprints of events called event IDs.
         size: Size of the queue q.
@@ -34,13 +36,20 @@ class BroadcastingQueue(threading.Thread):
         """
         super().run()
         while self.loop_flag:
-            event_id = self.q.get()
-            if event_id is None:
+            event = self.q.get()
+
+            if event is None:
                 continue
-            for client in self.clients:
-                if client.has_subscribed(event_id):
-                    loop = tornado.ioloop.IOLoop.current()
-                    loop.spawn_callback(client.broadcast_change, event_id)
+            elif type(event) is tuple:
+                for client in self.clients:
+                    if client.has_subscribed(event[0]):
+                        loop = tornado.ioloop.IOLoop.current()
+                        loop.spawn_callback(client.broadcast_change, event)
+            else:
+                for client in self.clients:
+                    if client.has_subscribed(event):
+                        loop = tornado.ioloop.IOLoop.current()
+                        loop.spawn_callback(client.broadcast_change, event)
 
     def broadcast_event_id(self, event_id):
         """
@@ -49,6 +58,17 @@ class BroadcastingQueue(threading.Thread):
         :return: None
         """
         self.q.put(event_id)
+
+    def broadcast_event_with_data(self, event_id, data):
+        """
+        Puts an event ID and data to be broadcast as tuple(event_id, data)
+        in q.
+        :param event_id: sha1 fingerprint of event.
+        :param data: Data to be published.
+        :return: None
+        """
+        item = (event_id, data)
+        self.q.put(item)
 
     def clear_broadcast_queue(self):
         """
@@ -64,6 +84,8 @@ class BroadcastingQueue(threading.Thread):
         :return: None
         """
         self.clients.append(client)
+        if len(self.clients) == 1:
+            self.start()
 
     def remove_client(self, client):
         """
@@ -72,6 +94,8 @@ class BroadcastingQueue(threading.Thread):
         :return: None.
         """
         self.clients.remove(client)
+        if len(self.clients) == 0:
+            self.stop()
 
     def stop(self):
         """

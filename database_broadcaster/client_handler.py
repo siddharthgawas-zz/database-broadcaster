@@ -7,10 +7,9 @@ import hashlib
 import motor.motor_tornado
 from bson.son import SON
 from database_broadcaster.subscribe_message import SubscribeMessage, InvalidSubscribeMessageError, \
-    EventNotFoundError
+    EventNotFoundError, GeneralSubscribeMessage
 from http import HTTPStatus
 import tornado.concurrent
-from database_broadcaster.broadcasting_queue import BroadcastingQueue
 
 
 class ClientHandler(tornado.websocket.WebSocketHandler):
@@ -25,9 +24,6 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
          db_client:  MotorClient object which bson.son.SON as document_class.
     """
-    broadcast_queue = None
-    count = 0
-
     def __init__(self, application, request, **kwargs):
         """
         :param application: tornado.web.Application object
@@ -37,6 +33,9 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         super().__init__(application, request, **kwargs)
         self.db_client = motor.motor_tornado.MotorClient(document_class=SON)
         self.events_subscribed = {}
+
+    def initialize(self, broadcast_queue):
+        self.broadcast_queue = broadcast_queue
 
     def has_subscribed(self, event_id):
         """
@@ -55,16 +54,12 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         Add client to the broadcast_queue.
         :return: None
         """
-        ClientHandler.count += 1
-        if ClientHandler.count == 1:
-            ClientHandler.broadcast_queue = BroadcastingQueue(4000)
-            ClientHandler.broadcast_queue.start()
         status = {'status': 'connected'}
         self.write_message(dumps(status))
         print("Web Socket Opened", self.request.remote_ip
               + "-" + self.request.host)
         #self.application.broadcast_queue.add_client(self)
-        ClientHandler.broadcast_queue.add_client(self)
+        self.broadcast_queue.add_client(self)
 
     def check_origin(self, origin):
         return True
@@ -81,8 +76,8 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
             s = loads(message)
             print('Incoming Message From ' + self.request.remote_ip + '\n MESSAGE = ' + str(s))
             type_s = s['type']
-            if type_s == 'subscribe':
-                yield self.subscribe(message)
+            if type_s in ('db_subscribe', 'general_subscribe'):
+                yield self.subscribe(message, type_s)
             elif type_s == 'unsubscribe':
                 self.unsubscribe(message)
             elif type_s == 'unsubscribe_all':
@@ -144,12 +139,12 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         self.write_message(dumps(status))
 
     @tornado.gen.coroutine
-    def subscribe(self, message):
+    def subscribe(self, message,type):
         """
          Coroutine to subscribe to an event.
         :param message: JSON message of format
         {
-            "type": "subscribe",
+            "type": "db_subscribe",
             "db_name": "--name of database--",
             "collection_name": "--name of collection--",
             "objectId": "--ID of document to be subscribed--",
@@ -157,24 +152,33 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         }
         :return: None
         """
-        status = {'status': 'subscribed'}
-        sub_msg = SubscribeMessage.parse_message(message)
-        hash_msg = sub_msg.compute_hash()
-        result = sub_msg.get_data_by_data_path(self.db_client)
-        if type(result) is motor.motor_tornado.MotorCursor:
-            document = []
-            while (yield result.fetch_next):
-                doc = result.next_object()
-                document.append(doc)
-        else:
-            document = yield sub_msg.get_data_by_data_path(self.db_client)
-        status['data'] = document
+        if type == 'db_subscribe':
+            status = {'status': 'subscribed'}
+            sub_msg = SubscribeMessage.parse_message(message)
+            hash_msg = sub_msg.compute_hash()
+            result = sub_msg.get_data_by_data_path(self.db_client)
+            if type(result) is motor.motor_tornado.MotorCursor:
+                document = []
+                while (yield result.fetch_next):
+                    doc = result.next_object()
+                    document.append(doc)
+            else:
+                document = yield sub_msg.get_data_by_data_path(self.db_client)
+            status['data'] = document
 
-        self.events_subscribed[hash_msg] = \
-            (hashlib.sha1(str(document).encode('utf-8')).hexdigest(), sub_msg)
-        status['event_id'] = hash_msg
-        status['data_hash'] = self.events_subscribed[hash_msg][0]
-        self.write_message(dumps(status))
+            self.events_subscribed[hash_msg] = \
+                (hashlib.sha1(str(document).encode('utf-8')).hexdigest(), sub_msg)
+            status['event_id'] = hash_msg
+            status['data_hash'] = self.events_subscribed[hash_msg][0]
+            self.write_message(dumps(status))
+
+        elif type == 'general_subscribe':
+            status = {'status': 'subscribed'}
+            sub_msg = GeneralSubscribeMessage.parse_message(message)
+            event_id = sub_msg.compute_hash()
+            self.events_subscribed[event_id] = ("", sub_msg)
+            status['event_id'] = event_id
+            self.write_message(dumps(status))
 
     def on_close(self):
         """
@@ -182,40 +186,44 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         Removes client from the broadcasting queue.
         :return: None
         """
-        #self.application.broadcast_queue.remove_client(self)
-        ClientHandler.broadcast_queue.remove_client(self)
+        self.broadcast_queue.remove_client(self)
         print("Websocket Closed", self.request.remote_ip
               + "-" + self.request.host)
-        ClientHandler.count -= 1
-        if ClientHandler.count == 0:
-            ClientHandler.broadcast_queue.stop()
-            ClientHandler.broadcast_queue = None
         super().on_close()
 
     @tornado.gen.coroutine
-    def broadcast_change(self, event_id):
+    def broadcast_change(self, event):
         """
         Broadcast change to the client.
-        :param event_id:  sha1 fingerprint of subscribed event.
+        :param event:  sha1 fingerprint of subscribed event or (event_id, data).
         :return: None
         """
-        current_data_hash = self.events_subscribed[event_id][0]
-        sub_message = self.events_subscribed[event_id][1]
-        result = sub_message.get_data_by_data_path(self.db_client)
-        if type(result) is motor.motor_tornado.MotorCursor:
-            document = []
-            while (yield result.fetch_next):
-                doc = result.next_object()
-                document.append(doc)
-        else:
-            document = yield sub_message.get_data_by_data_path(self.db_client)
-        new_data_hash = hashlib.sha1(str(document).encode('utf-8')).hexdigest()
-        if new_data_hash != current_data_hash:
-            self.events_subscribed[event_id] = (new_data_hash, sub_message)
+        if type(event) is tuple:
             status = {
-                'event_id': event_id,
-                'status': 'data changed',
-                'data_hash': new_data_hash,
-                'data': document,
+                'event_id': event[0],
+                'status': 'data published',
+                'data': event[1]
             }
             self.write_message(dumps(status))
+
+        else:
+            current_data_hash = self.events_subscribed[event][0]
+            sub_message = self.events_subscribed[event][1]
+            result = sub_message.get_data_by_data_path(self.db_client)
+            if type(result) is motor.motor_tornado.MotorCursor:
+                document = []
+                while (yield result.fetch_next):
+                    doc = result.next_object()
+                    document.append(doc)
+            else:
+                document = yield sub_message.get_data_by_data_path(self.db_client)
+            new_data_hash = hashlib.sha1(str(document).encode('utf-8')).hexdigest()
+            if new_data_hash != current_data_hash:
+                self.events_subscribed[event] = (new_data_hash, sub_message)
+                status = {
+                    'event_id': event,
+                    'status': 'data changed',
+                    'data_hash': new_data_hash,
+                    'data': document,
+                }
+                self.write_message(dumps(status))
