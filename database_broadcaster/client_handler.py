@@ -10,6 +10,9 @@ from database_broadcaster.subscribe_message import SubscribeMessage, InvalidSubs
     EventNotFoundError
 from http import HTTPStatus
 import tornado.concurrent
+from database_broadcaster.broadcasting_queue import BroadcastingQueue
+
+
 class ClientHandler(tornado.websocket.WebSocketHandler):
     """
     Subclasses tornado.websocket.WebSocketHandler.
@@ -22,6 +25,9 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 
          db_client:  MotorClient object which bson.son.SON as document_class.
     """
+    broadcast_queue = None
+    count = 0
+
     def __init__(self, application, request, **kwargs):
         """
         :param application: tornado.web.Application object
@@ -29,8 +35,8 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         :param kwargs: Additional keyword arguments.
         """
         super().__init__(application, request, **kwargs)
-        self.events_subscribed = {}
         self.db_client = motor.motor_tornado.MotorClient(document_class=SON)
+        self.events_subscribed = {}
 
     def has_subscribed(self, event_id):
         """
@@ -49,11 +55,16 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         Add client to the broadcast_queue.
         :return: None
         """
+        ClientHandler.count += 1
+        if ClientHandler.count == 1:
+            ClientHandler.broadcast_queue = BroadcastingQueue(4000)
+            ClientHandler.broadcast_queue.start()
         status = {'status': 'connected'}
         self.write_message(dumps(status))
         print("Web Socket Opened", self.request.remote_ip
               + "-" + self.request.host)
-        self.application.broadcast_queue.add_client(self)
+        #self.application.broadcast_queue.add_client(self)
+        ClientHandler.broadcast_queue.add_client(self)
 
     def check_origin(self, origin):
         return True
@@ -171,9 +182,14 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         Removes client from the broadcasting queue.
         :return: None
         """
-        self.application.broadcast_queue.remove_client(self)
+        #self.application.broadcast_queue.remove_client(self)
+        ClientHandler.broadcast_queue.remove_client(self)
         print("Websocket Closed", self.request.remote_ip
               + "-" + self.request.host)
+        ClientHandler.count -= 1
+        if ClientHandler.count == 0:
+            ClientHandler.broadcast_queue.stop()
+            ClientHandler.broadcast_queue = None
         super().on_close()
 
     @tornado.gen.coroutine

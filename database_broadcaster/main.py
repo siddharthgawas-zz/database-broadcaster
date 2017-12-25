@@ -30,7 +30,7 @@ class DerivedClientHandler(ClientHandler):
                 document = s['document']
                 collection_name = s['collection_name']
                 collection = (self.db_client[db_name])[collection_name]
-                collection_wrap = MotorCollectionWrapper(collection, self.application.broadcast_queue)
+                collection_wrap = MotorCollectionWrapper(collection, super().broadcast_queue)
                 collection_wrap.insert_one(document)
 
             elif type == 'insert_many':
@@ -38,7 +38,7 @@ class DerivedClientHandler(ClientHandler):
                 documents = s['documents']
                 collection_name = s['collection_name']
                 collection = (self.db_client[db_name])[collection_name]
-                collection_wrap = MotorCollectionWrapper(collection, self.application.broadcast_queue)
+                collection_wrap = MotorCollectionWrapper(collection, super().broadcast_queue)
                 collection_wrap.insert_many(documents)
 
             elif type == 'update_one':
@@ -47,7 +47,7 @@ class DerivedClientHandler(ClientHandler):
                 filter = s['filter']
                 update = s['update']
                 collection = (self.db_client[db_name])[collection_name]
-                collection_wrap = MotorCollectionWrapper(collection, self.application.broadcast_queue)
+                collection_wrap = MotorCollectionWrapper(collection, super().broadcast_queue)
                 collection_wrap.update_one(filter, update)
 
             elif type == 'update_many':
@@ -56,7 +56,7 @@ class DerivedClientHandler(ClientHandler):
                 filter = s['filter']
                 update = s['update']
                 collection = (self.db_client[db_name])[collection_name]
-                collection_wrap = MotorCollectionWrapper(collection, self.application.broadcast_queue)
+                collection_wrap = MotorCollectionWrapper(collection, super().broadcast_queue)
                 collection_wrap.update_many(filter, update)
         except json.JSONDecodeError:
             self.write_error(HTTPStatus.BAD_REQUEST, message='Invalid Json Format')
@@ -74,7 +74,7 @@ class RealTimeDbApplication(tornado.web.Application):
     Attributes:
         broadcast_queue: BroadcastingQueue object used to broadcast messages to clients.
     """
-    def __init__(self, queue_size=4000, handlers=None,
+    def __init__(self, handlers=None,
                  default_host=None, transforms=None, **settings):
         """
         Initializes RealTimeDbApplication.
@@ -87,22 +87,12 @@ class RealTimeDbApplication(tornado.web.Application):
         """
         if handlers is None:
             handlers = [(r'/webs', ClientHandler)]
-        self.broadcast_queue = BroadcastingQueue(queue_size)
         super().__init__(handlers, default_host, transforms, **settings)
-
-    def start_broadcast_queue(self):
-        """
-        This methods is used to start broadcast_queue. broadcast_queue(of type BroadcastingQueue)
-        is also an instance of type threading.Thread. Thus this method starts BroadcastingQueue thread.
-        :return: Returns None.
-        """
-        self.broadcast_queue.start()
 
 
 if __name__ == '__main__':
     tornado.options.parse_command_line()
     app = RealTimeDbApplication(handlers=[(r'/webs', DerivedClientHandler)])
-    app.start_broadcast_queue()
     server = tornado.httpserver.HTTPServer(app)
     server.listen(options.port, options.host)
     ioloop.IOLoop.instance().start()
