@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="0f570876-40fd-4839-b6e7-307ab88b7fa9" name="Default" comment="">
-      <change beforePath="" afterPath="$PROJECT_DIR$/database_broadcaster/__init__.py" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/broadcasting_queue.py" afterPath="$PROJECT_DIR$/database_broadcaster/broadcasting_queue.py" />
-      <change beforePath="$PROJECT_DIR$/client_handler.py" afterPath="$PROJECT_DIR$/database_broadcaster/client_handler.py" />
-      <change beforePath="$PROJECT_DIR$/db_wrapper.py" afterPath="$PROJECT_DIR$/database_broadcaster/db_wrapper.py" />
-      <change beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/database_broadcaster/main.py" />
-      <change beforePath="$PROJECT_DIR$/sub_msg_gen.py" afterPath="$PROJECT_DIR$/database_broadcaster/sub_msg_gen.py" />
-      <change beforePath="$PROJECT_DIR$/subscribe_message.py" afterPath="$PROJECT_DIR$/database_broadcaster/subscribe_message.py" />
-    </list>
+    <list default="true" id="0f570876-40fd-4839-b6e7-307ab88b7fa9" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -35,8 +26,8 @@
       <file leaf-file-name="client_handler.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/database_broadcaster/client_handler.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="684">
-              <caret line="113" column="43" lean-forward="true" selection-start-line="113" selection-start-column="43" selection-end-line="113" selection-end-column="43" />
+            <state relative-caret-position="722">
+              <caret line="205" column="0" lean-forward="true" selection-start-line="205" selection-start-column="0" selection-end-line="205" selection-end-column="0" />
               <folding>
                 <element signature="e#60#79#0" expanded="true" />
               </folding>
@@ -654,8 +645,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/database_broadcaster/client_handler.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="684">
-          <caret line="113" column="43" lean-forward="true" selection-start-line="113" selection-start-column="43" selection-end-line="113" selection-end-column="43" />
+        <state relative-caret-position="722">
+          <caret line="205" column="0" lean-forward="true" selection-start-line="205" selection-start-column="0" selection-end-line="205" selection-end-column="0" />
           <folding>
             <element signature="e#60#79#0" expanded="true" />
           </folding>
