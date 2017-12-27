@@ -6,9 +6,10 @@ from queue import Queue
 import tornado.ioloop
 
 class BroadcastingQueue(threading.Thread):
+
     """
     BroadcastingQueue subclasses threading.Thread. Objects  of this class
-    basically sends event messages to the the clients. It maintains an queue
+    basically sends event messages to the the clients. It maintains a queue
     that contains event fingerprints. BroadcastingQueue is a self starting queue. Thread to
     process queue will be started automatically when a client is added. Thread is destroyed
     when queue has no clients.
@@ -76,6 +77,7 @@ class BroadcastingQueue(threading.Thread):
         :return: None
         """
         self.q = Queue(maxsize=self.size)
+        self.stop()
 
     def add_client(self, client):
         """

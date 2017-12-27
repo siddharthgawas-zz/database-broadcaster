@@ -23,6 +23,7 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
          is the sha1 hash of data fetched by path represented by SubscribeMessage.
 
          db_client:  MotorClient object which bson.son.SON as document_class.
+         broadcast_queue: Reference to the broadcasting queue.
     """
     def __init__(self, application, request, **kwargs):
         """
@@ -58,7 +59,6 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         self.write_message(dumps(status))
         print("Web Socket Opened", self.request.remote_ip
               + "-" + self.request.host)
-        #self.application.broadcast_queue.add_client(self)
         self.broadcast_queue.add_client(self)
 
     def check_origin(self, origin):
@@ -139,7 +139,7 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         self.write_message(dumps(status))
 
     @tornado.gen.coroutine
-    def subscribe(self, message,type):
+    def subscribe(self, message,type_s):
         """
          Coroutine to subscribe to an event.
         :param message: JSON message of format
@@ -152,7 +152,7 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
         }
         :return: None
         """
-        if type == 'db_subscribe':
+        if type_s == 'db_subscribe':
             status = {'status': 'subscribed'}
             sub_msg = SubscribeMessage.parse_message(message)
             hash_msg = sub_msg.compute_hash()

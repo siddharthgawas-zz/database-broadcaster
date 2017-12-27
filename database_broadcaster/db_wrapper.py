@@ -46,15 +46,13 @@ class MotorCollectionWrapper:
             self.queue.broadcast_event_id(event_id)
         return result
 
-    #not fully tested
     @tornado.gen.coroutine
-    def update_one(self, filter,update,*args,**kwargs):
+    def update_one(self, filter, update, *args,**kwargs):
         db_name = self.collection.database.name
         collection_name  = self.collection.name
         future = self.collection.update_one(filter,update,*args,**kwargs)
         update_result = yield future
 
-        #need to optimize this method
         if update_result.modified_count > 0:
             document_id = yield self.collection.find_one(filter, {"_id": 1})
             id = str(document_id['_id'])
@@ -67,7 +65,6 @@ class MotorCollectionWrapper:
                 self.queue.broadcast_event_id(event_id)
         return update_result
 
-    #complete testing required
     @tornado.gen.coroutine
     def update_many(self,filter,update,*args, **kwargs):
         db_name = self.collection.database.name
@@ -94,6 +91,42 @@ class MotorCollectionWrapper:
                     self.queue.broadcast_event_id(event_id)
         return update_result
 
+    @tornado.gen.coroutine
+    def delete_one(self, filter, *args, **kwargs):
+        db_name = self.collection.database.name
+        collection_name = self.collection.name
+
+        result = yield self.collection.find_one(filter, {'_id': 1})
+        deleted_id = str(result['_id'])
+
+        future = self.collection.delete_one(filter, *args, **kwargs)
+        deleted_result = yield future
+
+        if deleted_result.deleted_count > 0:
+            event_ids = [sg.generate_subscribe_message_hash(db_name, collection_name),
+                         sg.generate_subscribe_message_hash(db_name, collection_name, deleted_id)]
+            self.queue.broadcast_event_id(event_ids[0])
+            self.queue.broadcast_event_with_data(event_ids[1],{"deleted_id": deleted_id})
+        return deleted_result
+
+    @tornado.gen.coroutine
+    def delete_many(self,filter,*args,**kwargs):
+        db_name = self.collection.database.name
+        collection_name = self.collection.name
+        document_ids = []
+        cursor = self.collection.find(filter,{'_id': 1})
+        while (yield cursor.fetch_next):
+            doc = cursor.next_object()
+            document_ids.append(str(doc['_id']))
+
+        delete_result = yield self.collection.delete_many(filter)
+        if delete_result.deleted_count > 0:
+            for _id in document_ids:
+                event_id = sg.generate_subscribe_message_hash(db_name,collection_name,_id)
+                self.queue.broadcast_event_with_data(event_id,{"deleted_id": _id})
+            event_id = sg.generate_subscribe_message_hash(db_name,collection_name)
+            self.queue.broadcast_event_id(event_id)
+        return delete_result
 
 
 

@@ -1,5 +1,5 @@
 """
-Main Application.
+This is just an example.
 """
 import json.decoder
 from tornado.options import define, options
@@ -14,7 +14,9 @@ from database_broadcaster.broadcasting_queue import BroadcastingQueue
 define("port", default=8000, type=int, help="Set Port to Run")
 define("host", default="0.0.0.0", type=str, help="Set IP to Run")
 
+
 class DerivedClientHandler(ClientHandler):
+
     def __init__(self, application, request, **kwargs):
         super().__init__(application, request, **kwargs)
 
@@ -30,7 +32,7 @@ class DerivedClientHandler(ClientHandler):
                 collection_name = s['collection_name']
                 collection = (self.db_client[db_name])[collection_name]
                 collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
-                collection_wrap.insert_one(document)
+                yield collection_wrap.insert_one(document)
 
             elif type == 'insert_many':
                 db_name = s['db_name']
@@ -38,7 +40,7 @@ class DerivedClientHandler(ClientHandler):
                 collection_name = s['collection_name']
                 collection = (self.db_client[db_name])[collection_name]
                 collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
-                collection_wrap.insert_many(documents)
+                yield collection_wrap.insert_many(documents)
 
             elif type == 'update_one':
                 db_name = s['db_name']
@@ -47,7 +49,7 @@ class DerivedClientHandler(ClientHandler):
                 update = s['update']
                 collection = (self.db_client[db_name])[collection_name]
                 collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
-                collection_wrap.update_one(filter, update)
+                yield collection_wrap.update_one(filter, update)
 
             elif type == 'update_many':
                 db_name = s['db_name']
@@ -56,7 +58,23 @@ class DerivedClientHandler(ClientHandler):
                 update = s['update']
                 collection = (self.db_client[db_name])[collection_name]
                 collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
-                collection_wrap.update_many(filter, update)
+                yield collection_wrap.update_many(filter, update)
+
+            elif type == 'delete_one':
+                db_name = s['db_name']
+                collection_name = s['collection_name']
+                filter = s['filter']
+                collection = (self.db_client[db_name])[collection_name]
+                collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
+                yield collection_wrap.delete_one(filter)
+
+            elif type == 'delete_many':
+                db_name = s['db_name']
+                collection_name = s['collection_name']
+                filter = s['filter']
+                collection = (self.db_client[db_name])[collection_name]
+                collection_wrap = MotorCollectionWrapper(collection, self.broadcast_queue)
+                yield collection_wrap.delete_many(filter)
 
             elif type == 'publish':
                 event_path = s['event_path']

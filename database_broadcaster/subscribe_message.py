@@ -130,11 +130,13 @@ class SubscribeMessage:
             else:
                 n = int(path_parts[-1], 10)
                 return collection.find_one({'_id': self.objectId}
+
                                            , {'_id': 1, projection: {"$slice": [n, 1]}})
+
 
 class GeneralSubscribeMessage:
 
-    def __init__(self,event_path = ""):
+    def __init__(self, event_path=""):
         self.event_path = event_path
 
     @staticmethod
@@ -157,6 +159,7 @@ class GeneralSubscribeMessage:
         hash_ = hashlib.sha1(self.event_path.encode('utf-8'))
         event_id = hash_.hexdigest()
         return event_id
+
 
 class InvalidSubscribeMessageError(Exception):
     """
